@@ -1,0 +1,95 @@
+---
+- name: match sections
+  pattern_match:
+    regex: "^\\s+key\\s+\\d+\\s+--"
+    match_greedy: yes
+    match_all: yes
+  register: section
+
+- name: match keys values
+  pattern_group:
+    - name: match key number
+      pattern_match:
+        regex: "key\\s+(\\d+)"
+        content: "{{ item }}"
+      register: key_num
+
+    - name: match "accept" start datetime
+      pattern_match:
+        regex: "accept\\s+lifetime\\s+\\((\\d+:\\d+:\\d+)\\s+\\w+(\\s+\\w{3}\\s+\\d+\\s+\\d{4})\\)"
+        content: "{{ item }}"
+      register: a_start
+
+    - name: match "accept" stop datetime
+      pattern_match:
+        regex: "accept\\s+lifetime.+-\\s+\\((\\d+:\\d+:\\d+)\\s+\\w+(\\s+\\w{3}\\s+\\d+\\s+\\d{4})\\)"
+        content: "{{ item }}"
+      register: a_stop
+
+    - name: match "accept" valid key
+      pattern_match:
+        regex: "accept\\s+lifetime.+(valid)"
+        content: "{{ item }}"
+      register: a_valid
+
+    - name: match "accept" TZ datetime
+      pattern_match:
+        regex: "accept\\s+lifetime\\s+\\(\\d+:\\d+:\\d+\\s+(\\w+)\\s+.+\\)"
+        content: "{{ item }}"
+      register: a_tz
+
+    - name: match "send" start datetime
+      pattern_match:
+        regex: "send\\s+lifetime\\s+\\((\\d+:\\d+:\\d+)\\s+\\w+(\\s+\\w{3}\\s+\\d+\\s+\\d{4})\\)"
+        content: "{{ item }}"
+      register: s_start
+
+    - name: match "send" stop datetime
+      pattern_match:
+        regex: "send\\s+lifetime.+-\\s+\\((\\d+:\\d+:\\d+)\\s+\\w+(\\s+\\w{3}\\s+\\d+\\s+\\d{4})\\)"
+        content: "{{ item }}"
+      register: s_stop
+
+    - name: match "send" valid key
+      pattern_match:
+        regex: "send\\s+lifetime.+(valid)"
+        content: "{{ item }}"
+      register: s_valid
+
+    - name: match "send" TZ datetime
+      pattern_match:
+        regex: "send\\s+lifetime\\s+\\(\\d+:\\d+:\\d+\\s+(\\w+)\\s+.+\\)"
+        content: "{{ item }}"
+      register: s_tz
+  loop: "{{ section }}"
+  register: keys_data
+
+- name: generate json data structure
+  json_template:
+    template:
+      - key: "{{ item.key_num.matches.0 }}"
+        object:
+          - key: accept_lifetime
+            object:          
+              - key: start
+                value: "{{ item.a_start.matches | join('') }}"
+              - key: stop
+                value: "{{ item.a_stop.matches | join('') }}"
+              - key: in_use
+                value: "{{ item.a_valid.matches.0 == 'valid' }}"
+              - key: tz
+                value: "{{ item.a_tz.matches.0 }}"
+          - key: send_lifetime
+            object:
+              - key: start
+                value: "{{ item.s_start.matches | join('') }}"
+              - key: stop
+                value: "{{ item.s_stop.matches | join('') }}"
+              - key: in_use
+                value: "{{ item.s_valid.matches.0 == 'valid' }}"
+              - key: tz
+                value: "{{ item.s_tz.matches.0 }}"
+  loop: "{{ keys_data }}"
+  export: True
+  export_as: "dict"
+  register: keychain

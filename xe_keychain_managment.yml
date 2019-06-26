@@ -1,0 +1,85 @@
+---
+- hosts: all
+  gather_facts: False
+  vars:
+    # Time in seconds 1h=3600, 1d=86400
+    - key_duration: 100
+      # Time where both keys are valid
+    - key_active: 30
+      # key-chain name 
+    - key_name: OSPF-KEYs 
+      # keychain_pass are coming from group_vars/group/vault.yml
+
+
+  roles:
+    - ansible-network.network-engine
+
+
+  tasks:
+
+    - name: Get key-chain from devices
+      ios_command:
+        commands:
+          - show key chain {{ key_name }}
+      register: outputkey
+
+
+    - name: Parse raw output 
+      command_parser:
+        file: "roles/xe_keychain_parser.yml"
+        content: "{{ outputkey.stdout[0] }}"
+      # Return "keychain" dict
+  
+ 
+    - name: Set epoc time
+      # Time to epoch conversion
+      set_fact:
+        key_start1: "{{ (keychain['2'].accept_lifetime.stop | to_datetime('%H:%M:%S %b %d %Y')).strftime('%s') }}"
+        key_start2: "{{ (keychain['1'].accept_lifetime.stop | to_datetime('%H:%M:%S %b %d %Y')).strftime('%s') }}"
+
+    - name: Set facts key 1
+      # Define new datetime base on duration/active vars
+      set_fact:
+        start_time1: "{{ '%H:%M:%S %d %b %Y' | strftime(key_start1 | int - key_active | int) }}" 
+        stop_time1: "{{ '%H:%M:%S %d %b %Y' | strftime(( key_start1 | int ) + (key_duration | int - key_active | int) ) }}"
+      when: (keychain['1'].accept_lifetime.in_use != True) and
+            (keychain['1'].send_lifetime.in_use != True) and 
+            (keychain['2'].accept_lifetime.in_use == True) and
+            (keychain['2'].send_lifetime.in_use == True)     
+
+    - name: Set facts key 2
+      set_fact:
+         start_time2: "{{ '%H:%M:%S %d %b %Y' | strftime(( key_start2 | int ) - key_active | int ) }}"
+         stop_time2: "{{ '%H:%M:%S %d %b %Y' | strftime(( key_start2 | int ) + (key_duration | int - key_active | int) }}"
+      when: (keychain['1'].accept_lifetime.in_use == True) and
+            (keychain['1'].send_lifetime.in_use == True) and
+            (keychain['2'].accept_lifetime.in_use != True) and
+            (keychain['2'].send_lifetime.in_use != True)
+
+
+    - name: Change key-chain {{ key_name }} - 1 
+      ios_config:
+         commands:
+           - key-string {{ keychain_pass1 }}
+           - cryptographic-algorithm hmac-sha-1
+           - accept-lifetime local {{ start_time1 }} {{ stop_time1 }}
+           - send-lifetime local {{ start_time1 }} {{ stop_time1 }}
+         parents: 
+           - key chain {{ key_name }}
+           - key 1
+      when: start_time1 is defined
+      #no_log: true 
+
+    - name: Change key-chain {{ key_name }} - 2
+      ios_config:
+         commands:
+           - key-string {{ keychain_pass2 }}
+           - cryptographic-algorithm hmac-sha-1
+           - accept-lifetime local {{ start_time2 }} {{ stop_time2 }}
+           - send-lifetime local {{ start_time2 }} {{ stop_time2 }}
+         parents:
+           - key chain {{ key_name }}
+           - key 2
+      when: start_time2 is defined
+      #no_log: true
+  
