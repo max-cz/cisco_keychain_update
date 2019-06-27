@@ -5,7 +5,7 @@
     # Time in seconds 1h=3600, 1d=86400
     - key_duration: 100
       # Time where both keys are valid
-    - key_active: 30
+    - key_overlap: 30
       # key-chain name 
     - key_name: OSPF-KEYs 
       # keychain_pass are coming from group_vars/group/vault.yml
@@ -38,10 +38,10 @@
         key_start2: "{{ (keychain['1'].accept_lifetime.stop | to_datetime('%H:%M:%S %b %d %Y')).strftime('%s') }}"
 
     - name: Set facts key 1
-      # Define new datetime base on duration/active vars
+      # Define new datetime base on key duration/overlap vars
       set_fact:
-        start_time1: "{{ '%H:%M:%S %d %b %Y' | strftime(key_start1 | int - key_active | int) }}" 
-        stop_time1: "{{ '%H:%M:%S %d %b %Y' | strftime(( key_start1 | int ) + (key_duration | int - key_active | int) ) }}"
+        start_time1: "{{ '%H:%M:%S %d %b %Y' | strftime(key_start1 | int - key_overlap | int) }}" 
+        stop_time1: "{{ '%H:%M:%S %d %b %Y' | strftime(( key_start1 | int ) + (key_duration | int - key_overlap | int) ) }}"
       when: (keychain['1'].accept_lifetime.in_use != True) and
             (keychain['1'].send_lifetime.in_use != True) and 
             (keychain['2'].accept_lifetime.in_use == True) and
@@ -49,8 +49,8 @@
 
     - name: Set facts key 2
       set_fact:
-         start_time2: "{{ '%H:%M:%S %d %b %Y' | strftime(( key_start2 | int ) - key_active | int ) }}"
-         stop_time2: "{{ '%H:%M:%S %d %b %Y' | strftime(( key_start2 | int ) + (key_duration | int - key_active | int) }}"
+         start_time2: "{{ '%H:%M:%S %d %b %Y' | strftime(( key_start2 | int ) - key_overlap | int ) }}"
+         stop_time2: "{{ '%H:%M:%S %d %b %Y' | strftime(( key_start2 | int ) + (key_duration | int - key_overlap | int) }}"
       when: (keychain['1'].accept_lifetime.in_use == True) and
             (keychain['1'].send_lifetime.in_use == True) and
             (keychain['2'].accept_lifetime.in_use != True) and
