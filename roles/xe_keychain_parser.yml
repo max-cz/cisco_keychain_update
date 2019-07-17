@@ -70,7 +70,7 @@
       - key: "{{ item.key_num.matches.0 }}"
         object:
           - key: accept_lifetime
-            object:          
+            object:
               - key: start
                 value: "{{ item.a_start.matches | join('') }}"
               - key: stop
