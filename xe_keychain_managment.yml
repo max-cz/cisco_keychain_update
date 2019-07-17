@@ -24,12 +24,12 @@
       register: outputkey
 
 
-    - name: Parse raw output 
+    - name: Parse raw output
       command_parser:
         file: "roles/xe_keychain_parser.yml"
         content: "{{ outputkey.stdout[0] }}"
       # Return "keychain" dict
-  
+ 
  
     - name: Set epoc time
       # Time to epoch conversion
@@ -40,12 +40,12 @@
     - name: Set facts key 1
       # Define new datetime base on key duration/overlap vars
       set_fact:
-        start_time1: "{{ '%H:%M:%S %d %b %Y' | strftime(key_start1 | int - key_overlap | int) }}" 
+        start_time1: "{{ '%H:%M:%S %d %b %Y' | strftime(key_start1 | int - key_overlap | int) }}"
         stop_time1: "{{ '%H:%M:%S %d %b %Y' | strftime(( key_start1 | int ) + (key_duration | int - key_overlap | int) ) }}"
       when: (keychain['1'].accept_lifetime.in_use != True) and
             (keychain['1'].send_lifetime.in_use != True) and 
             (keychain['2'].accept_lifetime.in_use == True) and
-            (keychain['2'].send_lifetime.in_use == True)     
+            (keychain['2'].send_lifetime.in_use == True)
 
     - name: Set facts key 2
       set_fact:
@@ -82,4 +82,3 @@
            - key 2
       when: start_time2 is defined
       #no_log: true
-  
